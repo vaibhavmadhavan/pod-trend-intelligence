@@ -17,16 +17,16 @@ Status key: `[ ]` todo · `[x]` done · `[-]` blocked
 
 ## 1. Database Layer (`db/`) — Supabase (PostgreSQL)
 
-- [ ] Write `db/migrations/001_initial_schema.sql` — PostgreSQL DDL for `schema_version`, `keyword_runs` (with all columns + UNIQUE constraint + index), `reddit_posts` (with UNIQUE on post_url + index), `llm_outputs` (with UNIQUE on run_date+keyword); use `SERIAL PRIMARY KEY` not `AUTOINCREMENT`
-- [ ] Write `db/migrations/002_add_is_viable_etsy_listings_niche_themes.sql` — PostgreSQL DDL for `etsy_listings` and `niche_themes` tables + their indexes; `ALTER TABLE keyword_runs ADD COLUMN IF NOT EXISTS is_viable INTEGER DEFAULT 1`
-- [ ] Write `db/schema.sql` — combined DDL reference (union of all migrations, for documentation)
-- [ ] Write `db/database.py`:
-  - [ ] `get_connection()` — reads `DATABASE_URL` from env; returns `psycopg2` connection (`autocommit=False`)
-  - [ ] `run_migrations()` — bootstraps `schema_version`, globs + sorts `migrations/*.sql`, applies unapplied files in a transaction, records each in `schema_version`
-  - [ ] `retry_with_backoff(fn, max_attempts=3)` — shared HTTP retry utility with 2s/4s/8s waits
-  - [ ] `insert_or_ignore()` — `INSERT INTO ... ON CONFLICT DO NOTHING` with `%s` placeholders
-  - [ ] `update_row()` — `UPDATE ... SET` with `%s` placeholders
-  - [ ] `fetch_df()` — `pd.read_sql_query` wrapper; returns empty DataFrame on no rows
+- [x] Write `db/migrations/001_initial_schema.sql` — PostgreSQL DDL for `schema_version`, `keyword_runs` (with all columns + UNIQUE constraint + index), `reddit_posts` (with UNIQUE on post_url + index), `llm_outputs` (with UNIQUE on run_date+keyword); use `SERIAL PRIMARY KEY` not `AUTOINCREMENT`
+- [x] Write `db/migrations/002_add_is_viable_etsy_listings_niche_themes.sql` — PostgreSQL DDL for `etsy_listings` and `niche_themes` tables + their indexes; `ALTER TABLE keyword_runs ADD COLUMN IF NOT EXISTS is_viable INTEGER DEFAULT 1`
+- [x] Write `db/schema.sql` — combined DDL reference (union of all migrations, for documentation)
+- [x] Write `db/database.py`:
+  - [x] `get_connection()` — reads `DATABASE_URL` from env; returns `psycopg2` connection (`autocommit=False`)
+  - [x] `run_migrations()` — bootstraps `schema_version`, globs + sorts `migrations/*.sql`, applies unapplied files in a transaction, records each in `schema_version`
+  - [x] `retry_with_backoff(fn, max_attempts=3)` — shared HTTP retry utility with 2s/4s/8s waits
+  - [x] `insert_or_ignore()` — `INSERT INTO ... ON CONFLICT DO NOTHING` with `%s` placeholders
+  - [x] `update_row()` — `UPDATE ... SET` with `%s` placeholders
+  - [x] `fetch_df()` — `pd.read_sql_query` wrapper; returns empty DataFrame on no rows
 - [x] Add `psycopg2-binary==2.9.9` to `requirements.txt`
 - [x] Add `DATABASE_URL=postgresql://...` to `.env.example`
 - [x] Remove `DB_PATH` from `config.py`; keep `MIGRATIONS_DIR`
