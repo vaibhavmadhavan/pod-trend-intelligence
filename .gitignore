@@ -1,0 +1,29 @@
+.env
+
+# Runtime-generated directories
+data/
+models/
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Selenium / browser drivers
+chromedriver*
+geckodriver*
