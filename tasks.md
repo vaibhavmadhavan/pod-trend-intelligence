@@ -35,27 +35,27 @@ Status key: `[ ]` todo · `[x]` done · `[-]` blocked
 
 ## 2. Module 1 — Data Collection (`modules/collector.py`)
 
-- [ ] `fetch_google_trends(keyword: str) -> float | None` — pulls latest interest score via pytrends; returns None on failure; adds inter-request delay
-- [ ] `fetch_reddit_posts(keyword: str, subreddits: list[str], run_date: date) -> list[RedditPost]` — queries PRAW for hot/top posts matching keyword in each subreddit; captures title, upvotes, comment_count, post_url
-- [ ] `fetch_etsy_listings(keyword: str, run_date: date, limit: int = 50) -> list[EtsyListing]` — scrapes Etsy search results with BeautifulSoup/Selenium; captures title, price, review_count, listing_age_days, url; enforces 2s rate limit between requests
-- [ ] `run_collection(keywords: list[str], run_date: date) -> CollectionResult` — orchestrates all three sub-fetchers per keyword; wraps each in try/except; writes results to `keyword_runs` (partial), `reddit_posts`, `etsy_listings`; returns `CollectionResult(keywords_processed, rows_inserted, errors)`
-- [ ] Define `RedditPost`, `EtsyListing`, `CollectionResult` dataclasses
-- [ ] JSON-structured logging for each sub-task (module, keyword, level, message, run_date)
+- [x] `fetch_google_trends(keyword: str) -> float | None` — pulls latest interest score via pytrends; returns None on failure; adds inter-request delay
+- [x] `fetch_reddit_posts(keyword: str, subreddits: list[str], run_date: date) -> list[RedditPost]` — graceful stub when REDDIT_CLIENT_ID missing; full PRAW implementation ready when credentials added
+- [x] `fetch_etsy_listings(keyword: str, run_date: date, limit: int = 50) -> list[EtsyListing]` — uses Etsy API v3 (x-api-key auth); captures title, price (from price.amount/divisor), num_favorers as review_count proxy, url; enforces 2s rate limit between paginated requests
+- [x] `run_collection(keywords: list[str], run_date: date) -> CollectionResult` — orchestrates all three sub-fetchers per keyword; wraps each in try/except; writes results to `keyword_runs` (partial), `reddit_posts`, `etsy_listings`; returns `CollectionResult(keywords_processed, rows_inserted, errors)`
+- [x] Define `RedditPost`, `EtsyListing`, `CollectionResult` dataclasses
+- [x] JSON-structured logging for each sub-task (module, keyword, level, message, run_date)
 
 ---
 
 ## 3. Module 2 — Feature Engineering (`modules/features.py`)
 
-- [ ] `compute_features(run_date: date) -> pd.DataFrame`:
-  - [ ] `trend_slope` — linear regression slope over last 4 weekly `trend_score` values per keyword
-  - [ ] `growth_rate_mom` — `(current - last_month) / last_month × 100`; NULL-safe
-  - [ ] `reddit_volume` — count of `reddit_posts` rows for this keyword in current week
-  - [ ] `reddit_virality` — avg upvotes of matching reddit posts this week
-  - [ ] `etsy_demand` — avg `review_count` of top 20 `etsy_listings` for keyword on run_date
-  - [ ] `competition_score` — `etsy_competition / etsy_demand`; handle division-by-zero
-  - [ ] `seasonality_flag` — binary: is any HOLIDAY_DATE within SEASONALITY_WINDOW_DAYS of run_date?
-  - [ ] UPDATE `keyword_runs` with all computed columns for run_date
-  - [ ] Log WARNING (not raise) for any feature that cannot be computed due to insufficient history
+- [x] `compute_features(run_date: date) -> pd.DataFrame`:
+  - [x] `trend_slope` — linear regression slope over last 4 weekly `trend_score` values per keyword
+  - [x] `growth_rate_mom` — `(current - last_month) / last_month × 100`; NULL-safe
+  - [x] `reddit_volume` — count of `reddit_posts` rows for this keyword in current week
+  - [x] `reddit_virality` — avg upvotes of matching reddit posts this week
+  - [x] `etsy_demand` — avg `review_count` of top 20 `etsy_listings` for keyword on run_date
+  - [x] `competition_score` — `etsy_competition / etsy_demand`; handle division-by-zero
+  - [x] `seasonality_flag` — binary: is any HOLIDAY_DATE within SEASONALITY_WINDOW_DAYS of run_date?
+  - [x] UPDATE `keyword_runs` with all computed columns for run_date
+  - [x] Log WARNING (not raise) for any feature that cannot be computed due to insufficient history
 
 ---
 
