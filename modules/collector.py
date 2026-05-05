@@ -10,7 +10,6 @@ from urllib.parse import quote_plus
 
 import requests
 from dotenv import load_dotenv
-from pytrends.request import TrendReq
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -90,18 +89,32 @@ class CollectionResult:
 # Google Trends
 # ---------------------------------------------------------------------------
 
-_pytrends = TrendReq(hl="en-US", tz=360, timeout=(10, 25))
-
-
 def fetch_google_trends(keyword: str) -> float | None:
+    api_key = os.environ.get("SERPAPI_KEY", "").strip()
+    if not api_key:
+        _log("ERROR", "SERPAPI_KEY not set — skipping Google Trends", keyword=keyword)
+        return None
     try:
-        _pytrends.build_payload([keyword], cat=0, timeframe="today 3-m")
-        df = _pytrends.interest_over_time()
-        if df.empty or keyword not in df.columns:
-            _log("WARNING", "No data returned", keyword=keyword, source="google_trends")
+        resp = requests.get(
+            _SERPAPI_URL,
+            params={
+                "engine": "google_trends",
+                "q": keyword,
+                "data_type": "TIMESERIES",
+                "api_key": api_key,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        timeline = data.get("interest_over_time", {}).get("timeline_data", [])
+        if not timeline:
+            _log("WARNING", "No trend data returned", keyword=keyword, source="google_trends")
             return None
-        time.sleep(5)
-        return float(df[keyword].iloc[-1])
+        last_values = timeline[-1].get("values", [])
+        score = float(last_values[0]["extracted_value"]) if last_values else None
+        _log("INFO", f"Trend score: {score}", keyword=keyword, source="google_trends")
+        return score
     except Exception as exc:
         _log("ERROR", f"Fetch failed: {exc}", keyword=keyword, source="google_trends")
         return None
@@ -156,95 +169,71 @@ def fetch_reddit_posts(
 
 
 # ---------------------------------------------------------------------------
-# Etsy API v3
+# Etsy listings via SerpApi (Google Shopping filtered to Etsy)
 # ---------------------------------------------------------------------------
 
-_ETSY_BASE = "https://openapi.etsy.com/v3/application"
-_ETSY_LISTING_URL = "https://www.etsy.com/listing/{listing_id}"
-
-
-def _etsy_headers() -> dict[str, str]:
-    key = os.environ.get("ETSY_API_KEY", "").strip()
-    if not key:
-        raise EnvironmentError("ETSY_API_KEY is not set in .env")
-    return {"x-api-key": key}
+_SERPAPI_URL = "https://serpapi.com/search"
 
 
 def fetch_etsy_listings(
     keyword: str, run_date: date, limit: int = 50
 ) -> list[EtsyListing]:
+    api_key = os.environ.get("SERPAPI_KEY", "").strip()
+    if not api_key:
+        _log("ERROR", "SERPAPI_KEY not set — skipping Etsy", keyword=keyword, source="serpapi")
+        return []
+
+    params = {
+        "engine": "google_shopping",
+        "q": f"{keyword} etsy",
+        "api_key": api_key,
+        "num": 100,
+        "hl": "en",
+        "gl": "us",
+    }
+
     try:
-        headers = _etsy_headers()
-    except EnvironmentError as exc:
-        _log("ERROR", str(exc), keyword=keyword, source="etsy")
+        resp = requests.get(_SERPAPI_URL, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+    except requests.exceptions.HTTPError as exc:
+        body = exc.response.text[:500] if exc.response is not None else "no body"
+        _log("ERROR", f"SerpApi HTTP error: {exc} — {body}", keyword=keyword, source="serpapi", run_date=str(run_date))
+        return []
+    except Exception as exc:
+        _log("ERROR", f"SerpApi request failed: {exc}", keyword=keyword, source="serpapi", run_date=str(run_date))
         return []
 
     listings: list[EtsyListing] = []
-    offset = 0
-    page_size = min(limit, 100)  # Etsy max per request is 100
+    for item in data.get("shopping_results", []):
+        title = (item.get("title") or "").strip()
+        link = (item.get("link") or item.get("product_link") or "").strip()
+        if not title or not link:
+            continue
 
-    while len(listings) < limit:
-        params = {
-            "keywords": keyword,
-            "limit": min(page_size, limit - len(listings)),
-            "offset": offset,
-            "sort_on": "score",
-            "sort_order": "desc",
-        }
-
-        def _do_request(p=params, h=headers):
-            resp = requests.get(f"{_ETSY_BASE}/listings/active", params=p, headers=h, timeout=15)
-            resp.raise_for_status()
-            return resp.json()
-
+        price_raw = item.get("price")
         try:
-            data = retry_with_backoff(_do_request)
-        except Exception as exc:
-            _log("ERROR", f"Etsy API request failed: {exc}", keyword=keyword, source="etsy", run_date=str(run_date))
+            price = float(str(price_raw).replace("$", "").replace(",", "").strip())
+        except (TypeError, ValueError):
+            price = None
+
+        review_count = item.get("reviews")
+
+        listings.append(EtsyListing(
+            keyword=keyword,
+            run_date=run_date,
+            title=title[:500],
+            price=price,
+            review_count=review_count,
+            listing_age_days=None,
+            url=link,
+        ))
+
+        if len(listings) >= limit:
             break
 
-        results = data.get("results", [])
-        if not results:
-            break
-
-        for item in results:
-            listing_id = item.get("listing_id")
-            title = (item.get("title") or "").strip()
-            if not title or not listing_id:
-                continue
-
-            price_data = item.get("price") or {}
-            try:
-                price = float(price_data.get("amount", 0)) / max(price_data.get("divisor", 1), 1)
-            except (TypeError, ValueError):
-                price = None
-
-            num_favorers = item.get("num_favorers")
-            views = item.get("views")
-            # Etsy API doesn't expose review_count on listing search results;
-            # use num_favorers as the closest proxy for social proof / demand signal.
-            review_count = num_favorers if num_favorers is not None else views
-
-            url = _ETSY_LISTING_URL.format(listing_id=listing_id)
-
-            listings.append(EtsyListing(
-                keyword=keyword,
-                run_date=run_date,
-                title=title[:500],
-                price=price,
-                review_count=review_count,
-                listing_age_days=None,
-                url=url,
-            ))
-
-        offset += len(results)
-        if len(results) < page_size:
-            break  # no more pages
-
-        time.sleep(config.ETSY_DELAY_SECONDS)
-
-    _log("INFO", f"Fetched {len(listings)} Etsy listings", keyword=keyword, source="etsy", run_date=str(run_date))
-    return listings[:limit]
+    _log("INFO", f"Fetched {len(listings)} Etsy listings via SerpApi", keyword=keyword, source="serpapi", run_date=str(run_date))
+    return listings
 
 
 # ---------------------------------------------------------------------------
