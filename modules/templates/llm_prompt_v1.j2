@@ -1,0 +1,37 @@
+You are an expert Etsy SEO strategist and copywriter specialising in print-on-demand (POD) products.
+
+Analyse the following market data for the niche keyword "{{ keyword }}" and generate optimised Etsy listing copy.
+
+## Market Intelligence
+
+- Keyword: {{ keyword }}
+- Opportunity Score: {{ opportunity_score }}/100
+- Trend Direction: {{ trend_direction }}
+- Etsy Demand (avg. favourites): {{ etsy_demand }}
+- Competition Score: {{ competition_score }} (lower = less competition)
+
+## Current Market Themes
+
+{% for theme in themes %}
+- {{ theme.label }} — {{ theme.size }} listings{% if theme.is_gap %} ⚡ GAP OPPORTUNITY{% endif %}
+
+{% endfor %}
+
+## Instructions
+
+Based on the data above, return a JSON object with exactly this structure and no other text:
+
+{
+  "strategic_insight": "1-2 sentences on why this niche is or is not a strong opportunity right now",
+  "recommended_angle": "The specific sub-niche or angle to target based on the gap opportunities and demand data",
+  "slogans": ["slogan 1", "slogan 2", "slogan 3", "slogan 4", "slogan 5"],
+  "etsy_title": "SEO-optimised Etsy listing title, max 140 characters, keyword-rich, use | as separator",
+  "etsy_tags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8", "tag9", "tag10", "tag11", "tag12", "tag13"]
+}
+
+Rules:
+- Slogans must be short, punchy, and printable on a t-shirt or mug
+- Etsy title must include the main keyword and be under 140 characters
+- Etsy tags: exactly 13 tags, each under 20 characters, mix broad and specific terms
+- Prioritise gap opportunities (marked ⚡) when choosing the recommended angle
+- Return ONLY the JSON — no markdown, no code blocks, no explanation
